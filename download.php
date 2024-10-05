@@ -4,10 +4,12 @@ function getTopPackages($min, $max) {
     $perPage = 50;
     $page = intdiv($min, $perPage);
     $id = $page * $perPage;
+    $list_file = __DIR__ . '/zipballs/' . date('Ymd') . '-top' . $max . '-page%03d.txt';
     while (true) {
         $page++;
         $url = 'https://packagist.org/explore/popular.json?per_page=' . $perPage . '&page=' . $page;
         $json = json_decode(file_get_contents($url), true);
+        file_put_contents(sprintf($list_file, $page), var_export($json, true));
         foreach ($json['packages'] as $package) {
             yield $id => $package['name'];
             $id++;
