@@ -1,12 +1,12 @@
 <?php error_reporting(E_ALL);
 
 function getTopPackages($min, $max) {
-    $perPage = 15;
+    $perPage = 50;
     $page = intdiv($min, $perPage);
     $id = $page * $perPage;
     while (true) {
         $page++;
-        $url = 'https://packagist.org/explore/popular.json?page=' . $page;
+        $url = 'https://packagist.org/explore/popular.json?per_page=' . $perPage . '&page=' . $page;
         $json = json_decode(file_get_contents($url), true);
         foreach ($json['packages'] as $package) {
             yield $id => $package['name'];
