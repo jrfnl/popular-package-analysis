@@ -20,6 +20,55 @@ function getTopPackages($min, $max) {
     }
 }
 
+function getKeyToLatestVersion($packages) {
+    $highestVersion    = '0.0';
+    $highestVersionKey = null;
+    $devMasterKey      = null;
+    $devLatestKey      = null;
+    $devMainKey        = null;
+    foreach ($packages as $key => $info) {
+        // Keep track of some typical "default" branch names as a fall-back.
+        if (strpos($info['version_normalized'], 'dev-') === 0) {
+            if ($info['version_normalized'] === 'dev-main') {
+                $devMainKey = $key;
+                continue;
+            }
+
+            if ($info['version_normalized'] === 'dev-master') {
+                $devMasterKey = $key;
+                continue;
+            }
+
+            if ($info['version_normalized'] === 'dev-latest') {
+                $devLatestKey = $key;
+                continue;
+            }
+        }
+
+        if (version_compare($info['version_normalized'], $highestVersion, '>')) {
+            $highestVersion    = $info['version_normalized'];
+            $highestVersionKey = $key;
+        }
+    }
+
+    if ($highestVersionKey !== null) {
+        return $highestVersionKey;
+    }
+
+    // No tagged version found. Use whichever version has the "dist" key (if available).
+    if ($devLatestKey !== null && isset($packages[$devLatestKey]['dist'])) {
+        return $devLatestKey;
+    }
+    if ($devMainKey !== null && isset($packages[$devMainKey]['dist'])) {
+        return $devMainKey;
+    }
+    if ($devMasterKey !== null && isset($packages[$devMasterKey]['dist'])) {
+        return $devMasterKey;
+    }
+
+    return $highestVersionKey;
+}
+
 if ($argc < 3) {
     echo "Usage: download.php min-package max-package\n";
     return;
@@ -30,29 +79,30 @@ $maxPackage = $argv[2];
 foreach (getTopPackages($minPackage, $maxPackage) as $i => $packageName) {
     echo "[$i] $packageName\n";
     $packageName = strtolower($packageName);
-    $url = 'https://packagist.org/packages/' . $packageName . '.json';
+    $url = 'https://repo.packagist.org/p2/' . $packageName . '.json';
     $json = json_decode(file_get_contents($url), true);
-    $versions = $json['package']['versions'];
-    if (isset($versions['dev-master'])) {
-        $version = 'dev-master';
-    } else if (isset($versions['dev-main'])) {
-        $version = 'dev-main';
-    } else {
-        // Pick latest version.
-        $keys = array_keys($versions);
-        $version = $keys[0];
+
+    if (empty($json['packages'][$packageName])) {
+        $url = 'https://repo.packagist.org/p2/' . $packageName . '~dev.json';
+        $json = json_decode(file_get_contents($url), true);
     }
 
-    $package = $versions[$version];
-    if ($package['dist'] === null) {
+    $keyToLatestVersion = getKeyToLatestVersion($json['packages'][$packageName]);
+    if ($keyToLatestVersion === null || isset($json['packages'][$packageName][$keyToLatestVersion]) === false) {
+        echo "Skipping as no tagged releases and no default branch found" . PHP_EOL;
+        continue;
+    }
+
+    $latestVersion = $json['packages'][$packageName][$keyToLatestVersion];
+    if ($latestVersion['dist'] === null) {
         echo "Skipping due to missing dist\n";
         continue;
     }
 
-    $dist = $package['dist']['url'];
-    $zipball = __DIR__ . '/zipballs/' . $packageName . '.zip';
+    $dist = $latestVersion['dist']['url'];
+    $zipball = __DIR__ . '/zipballs/' . $packageName . '--' . $latestVersion['version']. '.zip';
     if (!file_exists($zipball)) {
-        echo "Downloading $version...\n";
+        echo "Downloading {$latestVersion['version']}...\n";
         $dir = dirname($zipball);
         if (!is_dir($dir)) {
             mkdir($dir, 0777, true);
