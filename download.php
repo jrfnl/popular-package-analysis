@@ -78,14 +78,14 @@ function getKeyToLatestVersion($packages) {
 }
 
 if ($argc < 3) {
-    echo "Usage: download.php min-package max-package\n";
+    echo "Usage: download.php min-package max-package", PHP_EOL;
     return;
 }
 
 $minPackage = $argv[1];
 $maxPackage = $argv[2];
 foreach (getTopPackages($minPackage, $maxPackage) as $i => $packageName) {
-    echo "[$i] $packageName\n";
+    echo "[$i] $packageName" . PHP_EOL;
     $packageName = strtolower($packageName);
     $url = 'https://repo.packagist.org/p2/' . $packageName . '.json';
     $json = json_decode(file_get_contents($url), true);
@@ -97,20 +97,20 @@ foreach (getTopPackages($minPackage, $maxPackage) as $i => $packageName) {
 
     $keyToLatestVersion = getKeyToLatestVersion($json['packages'][$packageName]);
     if ($keyToLatestVersion === null || isset($json['packages'][$packageName][$keyToLatestVersion]) === false) {
-        echo "Skipping as no tagged releases and no default branch found" . PHP_EOL;
+        echo "Skipping as no tagged releases and no default branch found", PHP_EOL;
         continue;
     }
 
     $latestVersion = $json['packages'][$packageName][$keyToLatestVersion];
     if ($latestVersion['dist'] === null) {
-        echo "Skipping due to missing dist\n";
+        echo "Skipping due to missing dist", PHP_EOL;
         continue;
     }
 
     $dist = $latestVersion['dist']['url'];
     $zipball = __DIR__ . '/zipballs/' . $packageName . '--' . $latestVersion['version']. '.zip';
     if (!file_exists($zipball)) {
-        echo "Downloading {$latestVersion['version']}...\n";
+        echo "Downloading {$latestVersion['version']}...", PHP_EOL;
         $dir = dirname($zipball);
         if (!is_dir($dir)) {
             mkdir($dir, 0777, true);
@@ -118,8 +118,10 @@ foreach (getTopPackages($minPackage, $maxPackage) as $i => $packageName) {
 
         exec("wget $dist -O $zipball", $execOutput, $execRetval);
         if ($execRetval !== 0) {
-            echo "wget failed: $execOutput\n";
+            echo "wget failed: $execOutput", PHP_EOL;
             break;
         }
+    } else {
+        echo "File already exists, previously downloaded", PHP_EOL;
     }
 }
