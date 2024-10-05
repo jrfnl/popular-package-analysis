@@ -1,5 +1,13 @@
 <?php error_reporting(E_ALL);
 
+/*
+ * Popular packages: sorted by downloads over the last week, not overall downloads to ensure we demote formerly-popular packages.
+ *
+ * Downloading complete top 2000 takes approximately 1 hour to download.
+ * Unzipping the complete top 2000 takes approximately 15 minutes.
+ * Re-running without needing to download still takes nearly 20 minutes due to all the API calls.
+ */
+
 function getTopPackages($min, $max) {
     $perPage = 50;
     $page = intdiv($min, $perPage);
