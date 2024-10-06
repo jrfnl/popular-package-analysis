@@ -8,11 +8,11 @@
  * Re-running without needing to download still takes nearly 20 minutes due to all the API calls.
  */
 
-function getTopPackages($min, $max) {
+function getTopPackages($min, $max, $targetDir, $date) {
     $perPage = 50;
     $page = intdiv($min, $perPage);
     $id = $page * $perPage;
-    $list_file = __DIR__ . '/zipballs/' . date('Ymd') . '-top' . $max . '-page%03d.txt';
+    $list_file = $targetDir . '/' . $date . '-top' . $min . '-' . $max . '-page%03d.txt';
     while (true) {
         $page++;
         $url = 'https://packagist.org/explore/popular.json?per_page=' . $perPage . '&page=' . $page;
@@ -84,8 +84,21 @@ if ($argc < 3) {
 
 $minPackage = $argv[1];
 $maxPackage = $argv[2];
-foreach (getTopPackages($minPackage, $maxPackage) as $i => $packageName) {
-    echo "[$i] $packageName" . PHP_EOL;
+
+// Create directory in which to place the final files.
+$date = date('Ymd');
+$targetDir = dirname(__DIR__) . '/'. $date . '_top' . $minPackage . '-' . $maxPackage;
+if (!is_dir($targetDir)) {
+    mkdir($targetDir, 0777, true);
+}
+copy(__DIR__ . '/extract.sh', $targetDir . '/extract.sh');
+
+foreach (getTopPackages($minPackage, $maxPackage, $targetDir, $date) as $i => $packageName) {
+    if ($i < $minPackage || $i > $maxPackage) {
+        continue;
+    }
+
+    echo PHP_EOL, "[$i] $packageName", PHP_EOL;
     $packageName = strtolower($packageName);
     $url = 'https://repo.packagist.org/p2/' . $packageName . '.json';
     $json = json_decode(file_get_contents($url), true);
@@ -114,6 +127,7 @@ foreach (getTopPackages($minPackage, $maxPackage) as $i => $packageName) {
         unlink($zipball);
     }
 
+    // Download to archive - this will prevent having to re-download every single time.
     if (!file_exists($zipball)) {
         echo "Downloading {$latestVersion['version']}...", PHP_EOL;
         $dir = dirname($zipball);
@@ -129,4 +143,12 @@ foreach (getTopPackages($minPackage, $maxPackage) as $i => $packageName) {
     } else {
         echo "File already exists, previously downloaded", PHP_EOL;
     }
+
+    // Copy only the current top 2000.
+    $to  = str_replace(__DIR__, $targetDir, $zipball);
+    $dir = dirname($to);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0777, true);
+    }
+    copy($zipball, $to);
 }
