@@ -109,6 +109,11 @@ foreach (getTopPackages($minPackage, $maxPackage) as $i => $packageName) {
 
     $dist = $latestVersion['dist']['url'];
     $zipball = __DIR__ . '/zipballs/' . $packageName . '--' . $latestVersion['version']. '.zip';
+    if (strpos($latestVersion['version'], 'dev-') === 0 && file_exists($zipball)) {
+        echo "Removing previously downloaded {$latestVersion['version']} zip...", PHP_EOL;
+        unlink($zipball);
+    }
+
     if (!file_exists($zipball)) {
         echo "Downloading {$latestVersion['version']}...", PHP_EOL;
         $dir = dirname($zipball);
